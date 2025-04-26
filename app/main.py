@@ -7,15 +7,13 @@ from typing import Optional
 
 app = FastAPI()
 
-# Создаем таблицы
 models.Base.metadata.create_all(bind=database.engine)
 
-# Исправленная модель Pydantic
 class TransactionCreate(BaseModel):
     amount: float
     category: str
     description: Optional[str] = None
-    transaction_date: date = date.today()  # Изменили имя поля с date на transaction_date
+    transaction_date: date
     
     class Config:
         from_attributes = True
@@ -34,7 +32,7 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
         category=transaction.category,
         description=transaction.description,
         date=transaction.transaction_date,
-        user_id=1  # Временное значение для теста
+        user_id=1
     )
     db.add(db_transaction)
     db.commit()
