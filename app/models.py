@@ -1,5 +1,16 @@
-from sqlalchemy import Column, Integer, String, Float, Date
+from sqlalchemy import Column, Integer, String
+from sqlalchemy import Float, Date, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
 from app.database import Base
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True)
+    username = Column(String, unique=True)
+    hashed_password = Column(String)
+    is_active = Column(Boolean, default=True)
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -9,4 +20,8 @@ class Transaction(Base):
     category = Column(String)
     description = Column(String, nullable=True)
     date = Column(Date)
-    user_id = Column(Integer)
+    owner_id = Column(Integer, ForeignKey("users.id"))
+    owner = relationship("User", back_populates="transactions")
+
+User.transactions = relationship("Transaction", back_populates="owner")
+
