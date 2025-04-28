@@ -12,6 +12,7 @@ async def start(update: Update, context):
         "Доступные команды:\n"
         "/add <сумма> <категория> [описание] [дата] - добавить трату\n"
         "/list - показать все траты\n"
+        "/delete - удалить трату\n"
     )
 
 async def add_transaction(update: Update, context):
@@ -23,16 +24,23 @@ async def add_transaction(update: Update, context):
 
         amount = float(args[1])
         category = args[2]
-        description = " ".join(args[3:-1]) if len(args) > 3 else None
-        date_str = args[-1] if len(args) > 3 and "." in args[-1] else datetime.now().strftime("%d.%m.%Y")
-        print(date_str)
-
-        try:
-            date = datetime.strptime(date_str, "%d.%m.%Y").strftime("%Y-%m-%d")
-        except ValueError:
-            date = datetime.now().strftime("%Y-%m-%d")
-            description = " ".join(args[3:]) if len(args) > 3 else None
-        print(date)
+        
+        # Парсим оставшиеся аргументы
+        description_parts = []
+        date_str = None
+        
+        for arg in args[3:]:
+            if '.' in arg and len(arg.split('.')) == 3:
+                try:
+                    datetime.strptime(arg, "%d.%m.%Y")
+                    date_str = arg
+                    break
+                except ValueError:
+                    pass
+            description_parts.append(arg)
+        
+        date = datetime.strptime(date_str, "%d.%m.%Y").strftime("%Y-%m-%d") if date_str else datetime.now().strftime("%Y-%m-%d")
+        description = " ".join(description_parts) if description_parts else None
 
         data = {
             "amount": amount,
@@ -42,7 +50,7 @@ async def add_transaction(update: Update, context):
         }
         
         response = requests.post(f"{API_URL}/transactions/", json=data)
-        await update.message.reply_text(f"✅ Трата {amount}₽ на {category} сохранена!")
+        await update.message.reply_text(f"✅ Трата {amount}₽ на {category} сохранена! Дата: {date}")
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {str(e)}")
 
@@ -56,18 +64,35 @@ async def list_transactions(update: Update, context):
             return
             
         message = "📋 История трат:\n\n"
-        for idx, tr in enumerate(transactions, 1):
-            date = datetime.strptime(tr['date'], "%Y-%m-%d").strftime("%d.%m.%Y")
+        for tr in transactions:
+            tr_date = datetime.strptime(tr['date'], "%Y-%m-%d").strftime("%d.%m.%Y")
             message += (
-                f"{idx}. {tr['amount']} ₽ - {tr['category']}\n"
-                f"   Описание: {tr.get('description', 'нет')}\n"
-                f"   Дата: {date}\n"
-                f"   ID: {tr['id']}\n\n"
+                f"Id {tr['id']}\n"
+                f"Сумма {tr['amount']} ₽ - {tr['category']}\n"
+                f"Комментария {tr.get('description', 'нет описания')}\n"
+                f"Дата {tr_date}\n\n"
             )
         
         await update.message.reply_text(message)
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка при получении трат: {str(e)}")
+
+async def delete_transaction(update: Update, context):
+    try:
+        args = update.message.text.split()
+        if len(args) < 2:
+            await update.message.reply_text("❌ Формат: /delete <id транзакции>")
+            return
+
+        transaction_id = args[1]
+        response = requests.delete(f"{API_URL}/transactions/{transaction_id}")
+        
+        if response.status_code == 200:
+            await update.message.reply_text("✅ Трата успешно удалена")
+        else:
+            await update.message.reply_text("❌ Не удалось удалить трату. Проверьте ID")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {str(e)}")
 
 def run_bot():
     app = Application.builder().token(TOKEN).build()
@@ -75,6 +100,8 @@ def run_bot():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("add", add_transaction))
     app.add_handler(CommandHandler("list", list_transactions))
+    app.add_handler(CommandHandler("delete", delete_transaction))
+    
     app.run_polling()
 
 if __name__ == "__main__":
