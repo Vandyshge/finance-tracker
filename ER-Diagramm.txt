@@ -1,0 +1,14 @@
++-------------+       +---------------+       +----------------+
+|    users    |       |   categories  |       |  transactions  |
++-------------+       +---------------+       +----------------+
+| PK id       |<---+  | PK id         |<---+  | PK id          |
+|    email    |    |  |    name       |    |  |    amount      |
+|    username |    |  | FK owner_id   |----+  |    description |
+|    password |    |  | FK category_id|--+ |  |    date        |
+|    is_active|    |  +---------------+  | |  | FK owner_id    |
++-------------+    |                     | |  | FK category_id |
+                   |                     | |  +----------------+
+                   |                     | |
+                   +---------------------+ |
+                                         |
+                                         +-------------------+ф
