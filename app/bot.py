@@ -21,6 +21,9 @@ async def start(update: Update, context):
         "/add <сумма> <категория> [описание] [дата] - добавить трату\n"
         "/list - показать все траты\n"
         "/delete <id> - удалить трату\n"
+        "/addcategory - добавить категорию\n"
+        "/listcategories - список категорий\n"
+        "/deletecategory - удалить категорию\n"
     )
 
 async def register(update: Update, context):
@@ -255,6 +258,71 @@ async def delete_transaction(update: Update, context):
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {str(e)}")
 
+async def add_category(update: Update, context):
+    if 'token' not in context.user_data:
+        await update.message.reply_text("❌ Сначала выполните вход (/login)")
+        return
+    try:
+        category_name = " ".join(context.args)
+        if not category_name:
+            await update.message.reply_text("❌ Формат: /addcategory <название>")
+            return
+
+        response = requests.post(
+            f"{API_URL}/categories/",
+            json={"name": category_name},
+            headers={"Authorization": f"Bearer {context.user_data['token']}"}
+        )
+        if response.status_code == 200:
+            await update.message.reply_text(f"✅ Категория '{category_name}' добавлена!")
+        else:
+            await update.message.reply_text(f"❌ Ошибка: {response.text}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {str(e)}")
+
+async def list_categories(update: Update, context):
+    if 'token' not in context.user_data:
+        await update.message.reply_text("❌ Сначала выполните вход (/login)")
+        return
+    try:
+        response = requests.get(
+            f"{API_URL}/categories/",
+            headers={"Authorization": f"Bearer {context.user_data['token']}"}
+        )
+        if response.status_code == 200:
+            categories = response.json()
+            if not categories:
+                await update.message.reply_text("📭 Нет категорий")
+                return
+            message = "📚 Ваши категории:\n" + "\n".join(f"{cat['id']}: {cat['name']}" for cat in categories)
+            await update.message.reply_text(message)
+        else:
+            await update.message.reply_text(f"❌ Ошибка: {response.text}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {str(e)}")
+
+async def delete_category(update: Update, context):
+    if 'token' not in context.user_data:
+        await update.message.reply_text("❌ Сначала выполните вход (/login)")
+        return
+    try:
+        if not context.args:
+            await update.message.reply_text("❌ Формат: /deletecategory <id>")
+            return
+
+        category_id = context.args[0]
+        response = requests.delete(
+            f"{API_URL}/categories/{category_id}",
+            headers={"Authorization": f"Bearer {context.user_data['token']}"}
+        )
+        if response.status_code == 200:
+            await update.message.reply_text("✅ Категория удалена")
+        else:
+            await update.message.reply_text(f"❌ Ошибка: {response.text}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {str(e)}")
+
+
 def run_bot():
     app = Application.builder().token(TOKEN).build()
     
@@ -278,6 +346,9 @@ def run_bot():
     app.add_handler(CommandHandler("add", add_transaction))
     app.add_handler(CommandHandler("list", list_transactions))
     app.add_handler(CommandHandler("delete", delete_transaction))
+    app.add_handler(CommandHandler("addcategory", add_category))
+    app.add_handler(CommandHandler("listcategories", list_categories))
+    app.add_handler(CommandHandler("deletecategory", delete_category))
     
     app.run_polling()
 
