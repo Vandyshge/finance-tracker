@@ -35,8 +35,12 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     access_token = auth.create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
     return {"access_token": access_token, "token_type": "bearer"}
 
+@app.get("/protected")
+async def protected_route(user: models.User = Depends(dependencies.get_current_user_from_bearer)):
+    return {"message": "Authenticated!"}
+
 @app.get("/users/me", response_model=schemas.UserInDB)
-def read_users_me(current_user: models.User = Depends(dependencies.get_current_user)):
+def read_users_me(current_user: models.User = Depends(dependencies.get_current_user_from_bearer)):
     return current_user
 
 @app.get("/user_by_email/{email}")
@@ -48,7 +52,7 @@ def get_user_by_email(email: str, db: Session = Depends(get_db)):
 
 # TRANSACTIONS
 @app.post("/transactions/", response_model=schemas.TransactionResponse)
-def create_transaction(transaction: schemas.TransactionCreate, current_user: models.User = Depends(dependencies.get_current_user), db: Session = Depends(get_db)):
+def create_transaction(transaction: schemas.TransactionCreate, current_user: models.User = Depends(dependencies.get_current_user_from_bearer), db: Session = Depends(get_db)):
     db_transaction = models.Transaction(
         amount=transaction.amount,
         description=transaction.description,
@@ -62,12 +66,12 @@ def create_transaction(transaction: schemas.TransactionCreate, current_user: mod
     return db_transaction
 
 @app.get("/transactions/", response_model=list[schemas.TransactionResponse])
-def list_transactions(current_user: models.User = Depends(dependencies.get_current_user), db: Session = Depends(get_db)):
+def list_transactions(current_user: models.User = Depends(dependencies.get_current_user_from_bearer), db: Session = Depends(get_db)):
     transactions = db.query(models.Transaction).filter(models.Transaction.owner_id == current_user.id).order_by(desc(models.Transaction.date)).all()
     return transactions
 
 @app.delete("/transactions/{transaction_id}")
-def delete_transaction(transaction_id: int, current_user: models.User = Depends(dependencies.get_current_user), db: Session = Depends(get_db)):
+def delete_transaction(transaction_id: int, current_user: models.User = Depends(dependencies.get_current_user_from_bearer), db: Session = Depends(get_db)):
     transaction = db.query(models.Transaction).filter(models.Transaction.id == transaction_id, models.Transaction.owner_id == current_user.id).first()
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
@@ -77,7 +81,7 @@ def delete_transaction(transaction_id: int, current_user: models.User = Depends(
 
 # CATEGORIES
 @app.post("/categories/", response_model=schemas.CategoryResponse)
-def create_category(category: schemas.CategoryCreate, current_user: models.User = Depends(dependencies.get_current_user), db: Session = Depends(get_db)):
+def create_category(category: schemas.CategoryCreate, current_user: models.User = Depends(dependencies.get_current_user_from_bearer), db: Session = Depends(get_db)):
     db_category = models.Category(name=category.name, owner_id=current_user.id)
     db.add(db_category)
     db.commit()
@@ -85,12 +89,12 @@ def create_category(category: schemas.CategoryCreate, current_user: models.User 
     return db_category
 
 @app.get("/categories/", response_model=list[schemas.CategoryResponse])
-def list_categories(current_user: models.User = Depends(dependencies.get_current_user), db: Session = Depends(get_db)):
+def list_categories(current_user: models.User = Depends(dependencies.get_current_user_from_bearer), db: Session = Depends(get_db)):
     categories = db.query(models.Category).filter(models.Category.owner_id == current_user.id).all()
     return categories
 
 @app.delete("/categories/{category_id}")
-def delete_category(category_id: int, current_user: models.User = Depends(dependencies.get_current_user), db: Session = Depends(get_db)):
+def delete_category(category_id: int, current_user: models.User = Depends(dependencies.get_current_user_from_bearer), db: Session = Depends(get_db)):
     category = db.query(models.Category).filter(models.Category.id == category_id, models.Category.owner_id == current_user.id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")

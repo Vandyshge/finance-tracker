@@ -1,11 +1,13 @@
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from . import models, schemas, auth
 from .database import get_db
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", scheme_name="Bearer")
+
+bearer_scheme = HTTPBearer()
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -28,3 +30,9 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+async def get_current_user_from_bearer(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db)
+) -> models.User:
+    return await get_current_user(credentials.credentials, db)
