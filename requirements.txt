@@ -1,5 +1,21 @@
-fastapi
-uvicorn
-sqlalchemy
-python-telegram-bot
-requests
+# Основные зависимости для FastAPI
+fastapi==0.109.1          # Веб-фреймворк для построения API
+uvicorn==0.27.0           # ASGI-сервер для запуска FastAPI
+
+# Работа с базой данных
+sqlalchemy==2.0.25        # ORM для работы с БД
+
+# Telegram бот
+python-telegram-bot==21.0 # Официальная библиотека для Telegram API
+
+# Вспомогательные библиотеки
+requests==2.31.0          # HTTP-запросы к внешним API
+python-jose==3.3.0        # JWT-токены для аутентификации
+passlib==1.7.4            # Хеширование паролей
+python-multipart==0.0.6   # Обработка форм данных в FastAPI
+python-dotenv==1.0.0      # Загрузка переменных окружения из .env
+email-validator
+
+# Для тестирования
+pytest==7.4.3             # Фреймворк для тестов
+httpx==0.25.2             # Асинхронные HTTP-запросы в тестах
