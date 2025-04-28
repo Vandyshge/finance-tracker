@@ -6,9 +6,7 @@ from datetime import datetime
 API_URL = "http://localhost:8001"
 TOKEN = "7879703019:AAHgq3YSlU4wug2L0vC5aSf57XX5MvFfO_U"
 
-# Состояния для регистрации
 REGISTER, EMAIL, PASSWORD = range(3)
-# Состояния для входа
 LOGIN_EMAIL, LOGIN_PASSWORD = range(3, 5)
 
 async def start(update: Update, context):
@@ -47,7 +45,7 @@ async def get_password(update: Update, context):
     context.user_data['password'] = update.message.text
     email = context.user_data['email']
     password = context.user_data['password']
-    user_id = str(update.message.from_user.id)  # Используем ID Telegram как username
+    user_id = str(update.message.from_user.id)
     
     try:
         # Регистрация
@@ -55,7 +53,7 @@ async def get_password(update: Update, context):
             f"{API_URL}/register",
             json={
                 "email": email,
-                "username": user_id,  # Используем user_id как username
+                "username": user_id,
                 "password": password
             }
         )
@@ -69,7 +67,7 @@ async def get_password(update: Update, context):
         auth_response = requests.post(
             f"{API_URL}/token",
             data={
-                "username": user_id,  # Используем user_id для входа
+                "username": user_id,
                 "password": password
             }
         )
@@ -98,10 +96,9 @@ async def login_email(update: Update, context):
 async def login_password(update: Update, context):
     password = update.message.text
     email = context.user_data['login_email']
-    user_id = str(update.message.from_user.id)  # Получаем user_id из Telegram
+    user_id = str(update.message.from_user.id)
     
     try:
-        # Получаем username (user_id) по email
         user_info = requests.get(f"{API_URL}/user_by_email/{email}")
         if user_info.status_code != 200:
             await update.message.reply_text("❌ Пользователь с таким email не найден")
@@ -153,8 +150,29 @@ async def add_transaction(update: Update, context):
             return
 
         amount = float(args[1])
-        category = args[2]
+        category_name = args[2] 
+
+        response = requests.get(
+            f"{API_URL}/categories/",
+            headers={"Authorization": f"Bearer {context.user_data['token']}"}
+        )
         
+        if response.status_code != 200:
+            await update.message.reply_text(f"❌ Ошибка: {response.text}")
+            return
+        
+        categories = response.json()
+        valid_category_names = {cat['name'].lower(): cat['id'] for cat in categories} 
+
+        if category_name.lower() not in valid_category_names:
+            message = "❌ Неверное название категории! Доступные категории:\n"
+            for cat in categories:
+                message += f"{cat['name']}\n"
+            await update.message.reply_text(message)
+            return
+        
+        category_id = valid_category_names[category_name.lower()]  
+
         description_parts = []
         date_str = None
         
@@ -173,7 +191,7 @@ async def add_transaction(update: Update, context):
 
         data = {
             "amount": amount,
-            "category": category,
+            "category_id": category_id,
             "description": description,
             "date": date
         }
@@ -185,7 +203,7 @@ async def add_transaction(update: Update, context):
         )
         
         if response.status_code == 200:
-            await update.message.reply_text(f"✅ Трата {amount}₽ на {category} сохранена! Дата: {date}")
+            await update.message.reply_text(f"✅ Трата {amount}₽ на категорию '{category_name}' сохранена! Дата: {date}")
         else:
             await update.message.reply_text(f"❌ Ошибка: {response.text}")
     except Exception as e:
@@ -211,21 +229,33 @@ async def list_transactions(update: Update, context):
         if not transactions:
             await update.message.reply_text("📭 Список трат пуст")
             return
-            
+        
+        categories_response = requests.get(
+            f"{API_URL}/categories/",
+            headers={"Authorization": f"Bearer {context.user_data['token']}"}
+        )
+        
+        if categories_response.status_code != 200:
+            await update.message.reply_text(f"❌ Ошибка получения категорий: {categories_response.text}")
+            return
+        
+        categories = {cat['id']: cat['name'] for cat in categories_response.json()}
+        
         message = "📋 История трат (новые сверху):\n\n"
         for tr in transactions:
-            # Проверяем разные возможные форматы даты
             tr_date = tr.get('date') or tr.get('transaction_date')
             if isinstance(tr_date, str):
                 try:
                     tr_date = datetime.strptime(tr_date, "%Y-%m-%d").strftime("%d.%m.%Y")
                 except ValueError:
-                    tr_date = tr_date  # Оставляем как есть, если не удалось распарсить
+                    tr_date = tr_date 
+
+            category_name = categories.get(tr.get('category_id'), 'без категории')
             
             message += (
                 f"🆔 {tr.get('id', 'N/A')}\n"
                 f"📅 {tr_date}\n"
-                f"💰 {tr.get('amount', 0)} ₽ - {tr.get('category', 'без категории')}\n"
+                f"💰 {tr.get('amount', 0)} ₽ - {category_name}\n"
                 f"👤 Владелец: {tr.get('owner_id', tr.get('user_id', 'N/A'))}\n"
                 f"📝 {tr.get('description', 'нет описания')}\n\n"
             )

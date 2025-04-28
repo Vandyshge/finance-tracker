@@ -21,6 +21,7 @@ class Category(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"))
+    category_id = Column(Integer, ForeignKey('categories.id'))
     
     owner = relationship("User", back_populates="categories")
     transactions = relationship("Transaction", back_populates="category_rel")
